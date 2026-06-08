@@ -12,6 +12,9 @@ const {
   StringSelectMenuBuilder,
   ChannelType,
   PermissionFlagsBits,
+  REST,               // تم إضافتها للتسجيل التلقائي
+  Routes,             // تم إضافتها للتسجيل التلقائي
+  SlashCommandBuilder, // تم إضافتها للتسجيل التلقائي
 } = require('discord.js');
 
 const config = require('./config');
@@ -190,7 +193,7 @@ async function pollSubscriptions(client) {
   }
 }
 
-// ── Embed / Menu Builders (Modified for Guild Isolation) ──────────────────────
+// ── Embed / Menu Builders ──────────────────────────────────────────────────────
 
 function buildListEmbed(type, guildId) {
   const subs = store.subscriptions.filter((s) => s.type === type && s.guildId === guildId);
@@ -308,6 +311,37 @@ const client = new Client({
 client.once(Events.ClientReady, async () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
   console.log(`   Serving ${client.guilds.cache.size} guild(s).`);
+
+  // ── 🚀 التسجيل التلقائي للأوامر عند تشغيل البوت 🚀 ──
+  try {
+    const youtubeCommand = new SlashCommandBuilder()
+      .setName('youtube')
+      .setDescription('Manage YouTube notifications')
+      .setDMPermission(false)
+      .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
+      .addSubcommand((sub) => sub.setName('add').setDescription('Add a new YouTube channel'))
+      .addSubcommand((sub) => sub.setName('list').setDescription('List saved YouTube channels'))
+      .addSubcommand((sub) => sub.setName('remove').setDescription('Remove a saved YouTube channel'));
+
+    const bloggerCommand = new SlashCommandBuilder()
+      .setName('blogger')
+      .setDescription('Manage Blogger notifications')
+      .setDMPermission(false)
+      .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
+      .addSubcommand((sub) => sub.setName('add').setDescription('Add a new Blogger blog'))
+      .addSubcommand((sub) => sub.setName('list').setDescription('List saved Blogger blogs'))
+      .addSubcommand((sub) => sub.setName('remove').setDescription('Remove a saved Blogger blog'));
+
+    const commands = [youtubeCommand.toJSON(), bloggerCommand.toJSON()];
+    const rest = new REST({ version: '10' }).setToken(config.token);
+
+    console.log(`🚀 Automatically deploying ${commands.length} global commands...`);
+    await rest.put(Routes.applicationCommands(config.clientId), { body: commands });
+    console.log(`✅ Global commands successfully synced with Discord.`);
+  } catch (error) {
+    console.error('❌ Failed to auto-deploy commands:', error);
+  }
+  // ────────────────────────────────────────────────
 
   for (const subscription of store.subscriptions) {
     if (subscription.lastItemLink === undefined) {
